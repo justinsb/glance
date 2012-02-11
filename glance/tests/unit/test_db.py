@@ -32,6 +32,10 @@ _gen_uuid = utils.generate_uuid
 UUID1 = _gen_uuid()
 UUID2 = _gen_uuid()
 
+if UUID1 > UUID2:
+    x = UUID2
+    UUID2 = UUID1
+    UUID1 = x
 
 CONF = {'sql_connection': 'sqlite://',
         'verbose': False,
