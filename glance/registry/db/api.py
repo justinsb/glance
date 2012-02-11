@@ -255,13 +255,13 @@ def image_get_all(context, filters=None, marker=None, limit=None,
             query = query.filter(
                 or_(sort_key_attr < marker_value,
                     and_(sort_key_attr == marker_value,
-                         models.Image.created_at < marker_image.created_at,
+                         models.Image.created_at <= marker_image.created_at,
                          models.Image.id < marker)))
         else:
             query = query.filter(
                 or_(sort_key_attr > marker_value,
                     and_(sort_key_attr == marker_value,
-                         models.Image.created_at > marker_image.created_at,
+                         models.Image.created_at <= marker_image.created_at,
                          models.Image.id > marker)))
 
     if limit != None:
