@@ -27,6 +27,8 @@ import subprocess
 import sys
 
 
+WIN32 = sys.platform == 'win32'
+
 ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 VENV = os.path.join(ROOT, '.venv')
 PIP_REQUIRES = os.path.join(ROOT, 'tools', 'pip-requires')
@@ -42,22 +44,34 @@ def run_command(cmd, redirect_output=True, check_exit_code=True):
     Runs a command in an out-of-process shell, returning the
     output of that command.  Working directory is ROOT.
     """
+    if WIN32:
+        if cmd[0] == 'tools/with_venv.sh':
+            cmd[0] = 'tools\with_venv.bat'
+        for i in xrange(0, len(cmd)):
+            cmd[i] = cmd[i].replace('>', '^>')
+
     if redirect_output:
         stdout = subprocess.PIPE
     else:
         stdout = None
-
+    print "run %s" % cmd
     proc = subprocess.Popen(cmd, cwd=ROOT, stdout=stdout)
     output = proc.communicate()[0]
     if check_exit_code and proc.returncode != 0:
         die('Command "%s" failed.\n%s', ' '.join(cmd), output)
+    print "output %s" % output
     return output
 
 
-HAS_EASY_INSTALL = bool(run_command(['which', 'easy_install'],
-                                    check_exit_code=False).strip())
-HAS_VIRTUALENV = bool(run_command(['which', 'virtualenv'],
-                                    check_exit_code=False).strip())
+def has_executable(program):
+    if WIN32:
+        return True
+    return bool(run_command(['which', program],
+                            check_exit_code=False).strip())
+
+
+HAS_EASY_INSTALL = has_executable('easy_install')
+HAS_VIRTUALENV = has_executable('virtualenv')
 
 
 def check_dependencies():
@@ -101,8 +115,11 @@ def install_dependencies(venv=VENV):
                 redirect_output=False)
 
     # Tell the virtual env how to "import glance"
-    py_ver = _detect_python_version(venv)
-    pthfile = os.path.join(venv, "lib", py_ver, "site-packages", "glance.pth")
+    if WIN32:
+        pthfile = os.path.join(venv, "Lib", "site-packages", "glance.pth")
+    else:
+        py_ver = _detect_python_version(venv)
+        pthfile = os.path.join(venv, "lib", py_ver, "site-packages", "glance.pth")
     f = open(pthfile, 'w')
     f.write("%s\n" % ROOT)
 
