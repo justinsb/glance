@@ -15,6 +15,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import copy
 import datetime
 
 from glance.common import context
@@ -37,15 +38,16 @@ CONF = {'sql_connection': 'sqlite://',
         'verbose': False,
         'debug': False}
 
-FIXTURES = [
+def build_fixtures(t1, t2):
+    return [
     {'id': UUID1,
      'name': 'fake image #1',
      'status': 'active',
      'disk_format': 'ami',
      'container_format': 'ami',
      'is_public': False,
-     'created_at': datetime.datetime.utcnow(),
-     'updated_at': datetime.datetime.utcnow(),
+     'created_at': t1,
+     'updated_at': t1,
      'deleted_at': None,
      'deleted': False,
      'checksum': None,
@@ -60,8 +62,8 @@ FIXTURES = [
      'disk_format': 'vhd',
      'container_format': 'ovf',
      'is_public': True,
-     'created_at': datetime.datetime.utcnow(),
-     'updated_at': datetime.datetime.utcnow(),
+     'created_at': t2,
+     'updated_at': t2,
      'deleted_at': None,
      'deleted': False,
      'checksum': None,
@@ -73,7 +75,7 @@ FIXTURES = [
 
 
 class TestRegistryDb(base.IsolatedUnitTest):
-
+    
     def setUp(self):
         """Establish a clean test environment"""
         super(TestRegistryDb, self).setUp()
@@ -85,8 +87,14 @@ class TestRegistryDb(base.IsolatedUnitTest):
         self.create_fixtures()
 
     def create_fixtures(self):
-        for fixture in FIXTURES:
+        self.fixtures = build_fixtures()
+        for fixture in self.fixtures:
             db_api.image_create(self.adm_context, fixture)
+
+    def build_fixtures(self):
+        t1 = datetime.datetime.utcnow()
+        t2 = t1 + datetime.timedelta(microseconds=1)
+        return build_fixtures(t1, t2)
 
     def destroy_fixtures(self):
         # Easiest to just drop the models and re-create them...
@@ -95,7 +103,7 @@ class TestRegistryDb(base.IsolatedUnitTest):
 
     def test_image_get(self):
         image = db_api.image_get(self.context, UUID1)
-        self.assertEquals(image['id'], FIXTURES[0]['id'])
+        self.assertEquals(image['id'], self.fixtures[0]['id'])
 
     def test_image_get_disallow_deleted(self):
         db_api.image_destroy(self.adm_context, UUID1)
@@ -105,12 +113,12 @@ class TestRegistryDb(base.IsolatedUnitTest):
     def test_image_get_allow_deleted(self):
         db_api.image_destroy(self.adm_context, UUID1)
         image = db_api.image_get(self.adm_context, UUID1)
-        self.assertEquals(image['id'], FIXTURES[0]['id'])
+        self.assertEquals(image['id'], self.fixtures[0]['id'])
 
     def test_image_get_force_allow_deleted(self):
         db_api.image_destroy(self.adm_context, UUID1)
         image = db_api.image_get(self.context, UUID1, force_show_deleted=True)
-        self.assertEquals(image['id'], FIXTURES[0]['id'])
+        self.assertEquals(image['id'], self.fixtures[0]['id'])
 
     def test_image_get_all(self):
         images = db_api.image_get_all(self.context)
@@ -140,3 +148,11 @@ class TestRegistryDb(base.IsolatedUnitTest):
         images = db_api.image_get_all(self.context, marker=UUID1,
                                       filters=filters)
         self.assertEquals(len(images), 0)
+
+
+class TestRegistryDbWithSameTime(TestRegistryDb):
+
+    def build_fixtures(self):
+        t1 = datetime.datetime.utcnow()
+        t2 = t1  # Same timestamp!
+        return build_fixtures(t1, t2)
